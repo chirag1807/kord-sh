@@ -37,6 +37,7 @@ int execute_builtin(char **args) {
         if (strcmp(args[0], builtins[i].name) == 0) {
             return builtins[i].func(args);
         }
+
     }
     
     return 1;  // Not found (shouldn't happen if is_builtin was checked)
@@ -90,7 +91,5 @@ int builtin_echo(char **args) {
 
 int builtin_exit(char **args) {
     (void)args;  // Unused parameter
-    printf("logout\n");
     return -1;  // Special return value to signal exit
 }
-

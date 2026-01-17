@@ -35,4 +35,3 @@ int builtin_echo(char **args);
 int builtin_exit(char **args);
 
 #endif // BUILTINS_H
-

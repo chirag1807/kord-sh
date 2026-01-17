@@ -4,8 +4,13 @@
 #include <limits.h>
 #include <pwd.h>
 #include <string.h>
+#include <time.h>
+#include <sys/utsname.h>
 #include "../include/colors.h"
 #include "../include/prompt.h"
+#include "../include/raw_input.h"
+
+#define SHELL_VERSION "1.0.0"
 
 void print_prompt(void)
 {
@@ -73,7 +78,14 @@ char *build_prompt() {
 
     return prompt;
 }
+
 int read_user_input(char *command) {
+    // Use raw mode if enabled, otherwise use cooked mode
+    if (is_raw_mode_enabled()) {
+        return read_input_raw(command, 1024);
+    }
+    
+    // Cooked mode (original implementation)
     int ch;
     int i = 0;
     
@@ -89,3 +101,67 @@ int read_user_input(char *command) {
     return (ch == EOF) ? -1 : i;
 }
 
+void print_welcome(void) {
+    struct utsname sys_info;
+    struct passwd *pw = getpwuid(getuid());
+    char *username = pw ? pw->pw_name : getenv("USER");
+    if (!username) username = "user";
+    
+    // Get system info
+    if (uname(&sys_info) == -1) {
+        perror("uname");
+    }
+    
+    // Get current time
+    time_t now = time(NULL);
+    struct tm *t = localtime(&now);
+    char time_str[64];
+    strftime(time_str, sizeof(time_str), "%B %d, %Y at %I:%M %p", t);
+    
+    // Print banner
+    printf("\n");
+    printf("%s╔═════════════════════════════════════════════════════════════════╗%s\n", COLOR_BOLD_CYAN, COLOR_RESET);
+    printf("%s║%s                                                                 %s║%s\n", COLOR_BOLD_CYAN, COLOR_RESET, COLOR_BOLD_CYAN, COLOR_RESET);
+    printf("%s║%s     %s██╗  ██╗ ██████╗ ██████╗ ██████╗       ███████╗██╗  ██╗%s     %s║%s\n", COLOR_BOLD_CYAN, COLOR_RESET, COLOR_BOLD_GREEN, COLOR_RESET, COLOR_BOLD_CYAN, COLOR_RESET);
+    printf("%s║%s     %s██║ ██╔╝██╔═══██╗██╔══██╗██╔══██╗      ██╔════╝██║  ██║%s     %s║%s\n", COLOR_BOLD_CYAN, COLOR_RESET, COLOR_BOLD_GREEN, COLOR_RESET, COLOR_BOLD_CYAN, COLOR_RESET);
+    printf("%s║%s     %s█████╔╝ ██║   ██║██████╔╝██║  ██║█████╗███████╗███████║%s     %s║%s\n", COLOR_BOLD_CYAN, COLOR_RESET, COLOR_BOLD_GREEN, COLOR_RESET, COLOR_BOLD_CYAN, COLOR_RESET);
+    printf("%s║%s     %s██╔═██╗ ██║   ██║██╔══██╗██║  ██║╚════╝╚════██║██╔══██║%s     %s║%s\n", COLOR_BOLD_CYAN, COLOR_RESET, COLOR_BOLD_GREEN, COLOR_RESET, COLOR_BOLD_CYAN, COLOR_RESET);
+    printf("%s║%s     %s██║  ██╗╚██████╔╝██║  ██║██████╔╝      ███████║██║  ██║%s     %s║%s\n", COLOR_BOLD_CYAN, COLOR_RESET, COLOR_BOLD_GREEN, COLOR_RESET, COLOR_BOLD_CYAN, COLOR_RESET);
+    printf("%s║%s     %s╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚═════╝       ╚══════╝╚═╝  ╚═╝%s     %s║%s\n", COLOR_BOLD_CYAN, COLOR_RESET, COLOR_BOLD_GREEN, COLOR_RESET, COLOR_BOLD_CYAN, COLOR_RESET);
+    printf("%s║%s                                                                 %s║%s\n", COLOR_BOLD_CYAN, COLOR_RESET, COLOR_BOLD_CYAN, COLOR_RESET);
+    printf("%s╚═════════════════════════════════════════════════════════════════╝%s\n", COLOR_BOLD_CYAN, COLOR_RESET);
+    printf("\n");
+    
+    printf("  %s⚡ Version:%s %s%s%s\n", COLOR_BOLD_YELLOW, COLOR_RESET, COLOR_BOLD_WHITE, SHELL_VERSION, COLOR_RESET);
+    printf("  %s👤 User:%s    %s%s%s\n", COLOR_BOLD_YELLOW, COLOR_RESET, COLOR_BOLD_WHITE, username, COLOR_RESET);
+    
+    if (uname(&sys_info) != -1) {
+        printf("  %s💻 System:%s  %s%s %s%s\n", COLOR_BOLD_YELLOW, COLOR_RESET, COLOR_BOLD_WHITE, sys_info.sysname, sys_info.machine, COLOR_RESET);
+    }
+    
+    printf("  %s📅 Date:%s    %s%s%s\n", COLOR_BOLD_YELLOW, COLOR_RESET, COLOR_BOLD_WHITE, time_str, COLOR_RESET);
+    printf("\n");
+    printf("  %sType 'help' for available commands, or press Ctrl+D to exit%s\n", COLOR_DIM, COLOR_RESET);
+    printf("\n");
+}
+
+void print_goodbye(void) {
+    if (is_raw_mode_enabled()) {
+        disable_raw_mode();
+    }
+
+    time_t now = time(NULL);
+    struct tm *t = localtime(&now);
+    char time_str[64];
+    strftime(time_str, sizeof(time_str), "%I:%M %p", t);
+    
+    printf("\n");
+    printf("%s╔═══════════════════════════════════════════════════════════╗%s\n", COLOR_BOLD_CYAN, COLOR_RESET);
+    printf("%s║%s                                                           %s║%s\n", COLOR_BOLD_CYAN, COLOR_RESET, COLOR_BOLD_CYAN, COLOR_RESET);
+    printf("%s║%s              %s🌟 Thank you for using KORD-SH! 🌟%s           %s║%s\n", COLOR_BOLD_CYAN, COLOR_RESET, COLOR_BOLD_GREEN, COLOR_RESET, COLOR_BOLD_CYAN, COLOR_RESET);
+    printf("%s║%s                                                           %s║%s\n", COLOR_BOLD_CYAN, COLOR_RESET, COLOR_BOLD_CYAN, COLOR_RESET);
+    printf("%s╚═══════════════════════════════════════════════════════════╝%s\n", COLOR_BOLD_CYAN, COLOR_RESET);
+    printf("\n");
+    printf("  %sSession ended at %s%s%s%s\n", COLOR_DIM, COLOR_RESET, COLOR_BOLD_WHITE, time_str, COLOR_RESET);
+    printf("  %sGoodbye! 👋%s\n\n", COLOR_BOLD_YELLOW, COLOR_RESET);
+}
