@@ -3,6 +3,7 @@
 #include <string.h>
 #include <ctype.h>
 #include "../include/parser.h"
+#include "../include/variables.h"
 
 /**
  * Helper function to trim leading and trailing whitespace
@@ -19,6 +20,76 @@ static char *trim_whitespace(char *str) {
     
     *(end + 1) = '\0';
     return str;
+}
+
+/**
+ * Expand variables in a string (e.g., "$foo" -> "value")
+ * Returns a newly allocated string that must be freed by caller
+ */
+static char *expand_variables(const char *str) {
+    if (str == NULL) {
+        return NULL;
+    }
+    
+    // Allocate buffer for expanded string (worst case: same size if no variables)
+    size_t max_len = strlen(str) * 4 + 1024;  // Allow room for expansion
+    char *result = malloc(max_len);
+    if (!result) {
+        perror("malloc");
+        return NULL;
+    }
+    
+    const char *src = str;
+    char *dst = result;
+    size_t remaining = max_len - 1;
+    
+    while (*src && remaining > 0) {
+        if (*src == '$') {
+            src++;  // Skip the '$'
+            
+            // Extract variable name
+            const char *var_start = src;
+            while (*src && (isalnum((unsigned char)*src) || *src == '_')) {
+                src++;
+            }
+            
+            if (src > var_start) {
+                // We have a variable name
+                size_t var_len = src - var_start;
+                char var_name[256];
+                
+                if (var_len < sizeof(var_name)) {
+                    strncpy(var_name, var_start, var_len);
+                    var_name[var_len] = '\0';
+                    
+                    // Get variable value
+                    const char *value = get_variable(var_name);
+                    if (value) {
+                        size_t value_len = strlen(value);
+                        if (value_len < remaining) {
+                            strcpy(dst, value);
+                            dst += value_len;
+                            remaining -= value_len;
+                        }
+                    }
+                    // If variable not found, replace with empty string
+                }
+            } else {
+                // Just a '$' without a variable name, keep it
+                if (remaining > 0) {
+                    *dst++ = '$';
+                    remaining--;
+                }
+            }
+        } else {
+            // Regular character
+            *dst++ = *src++;
+            remaining--;
+        }
+    }
+    
+    *dst = '\0';
+    return result;
 }
 
 /**
@@ -61,11 +132,24 @@ static char **parse_single_command(const char *cmd_str) {
             
             if (*ptr == quote) {
                 *ptr = '\0';  // Null-terminate at closing quote
-                args[arg_count] = strdup(start);
+                
+                // Expand variables in the argument
+                char *expanded = expand_variables(start);
+                if (expanded) {
+                    args[arg_count] = expanded;
+                } else {
+                    args[arg_count] = strdup(start);
+                }
+                
                 ptr++;  // Move past the closing quote
             } else {
                 // No closing quote found, treat as regular token
-                args[arg_count] = strdup(start);
+                char *expanded = expand_variables(start);
+                if (expanded) {
+                    args[arg_count] = expanded;
+                } else {
+                    args[arg_count] = strdup(start);
+                }
             }
         } else {
             // Regular token (no quotes)
@@ -73,7 +157,15 @@ static char **parse_single_command(const char *cmd_str) {
             
             char temp = *ptr;
             *ptr = '\0';
-            args[arg_count] = strdup(start);
+            
+            // Expand variables in the argument
+            char *expanded = expand_variables(start);
+            if (expanded) {
+                args[arg_count] = expanded;
+            } else {
+                args[arg_count] = strdup(start);
+            }
+            
             if (temp) *ptr = temp;
         }
         

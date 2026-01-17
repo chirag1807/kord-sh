@@ -7,6 +7,7 @@
 #include "../include/executor.h"
 #include "../include/builtins.h"
 #include "../include/raw_input.h"
+#include "../include/variables.h"
 
 int execute_command(char ***commands) {
     if (commands == NULL || commands[0] == NULL) {
@@ -68,8 +69,13 @@ int execute_single_command(char **command, int fd_read, int fd_write) {
         return 0;  // Empty command
     }
     
-    // Check if it's a built-in command
-    if (is_builtin(command[0])) {
+    // Check if it's a variable assignment (VAR=value)
+    if (is_variable_assignment(command)) {
+        return execute_variable_assignment(command);
+    }
+    
+    // Check if it's a built-in command and must run in parent process
+    if (is_builtin(command[0]) && (must_run_in_parent(command[0]))) {
         return execute_builtin(command);
     }
     
@@ -107,6 +113,13 @@ int execute_external(char **command, int fd_read, int fd_write) {
         apply_io_redirection(command);
 
         // Child process
+        // Check if it's a builtin that can run in child (like pwd, echo in pipes)
+        if (is_builtin(command[0]) && !must_run_in_parent(command[0])) {
+            int result = execute_builtin(command);
+            exit(result);
+        }
+        
+        // External command
         if (execvp(command[0], command) == -1) {
             perror("kord-sh");
         }

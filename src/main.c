@@ -6,10 +6,14 @@
 #include "../include/parser.h"
 #include "../include/executor.h"
 #include "../include/raw_input.h"
+#include "../include/variables.h"
 
 int main()
 {
     char command[1024];
+    
+    // Initialize variable system
+    init_variables();
     
     // Print welcome banner
     print_welcome();
@@ -57,6 +61,9 @@ int main()
             break;
         }
     }
+    
+    // Cleanup variable system
+    cleanup_variables();
     
     // Raw mode is automatically disabled on exit via atexit()
     return EXIT_SUCCESS;
