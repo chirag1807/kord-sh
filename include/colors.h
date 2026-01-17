@@ -22,4 +22,7 @@
 #define COLOR_BOLD_CYAN    "\x1B[1;36m"
 #define COLOR_BOLD_WHITE   "\x1B[1;37m"
 
+// Text styles
+#define COLOR_DIM     "\x1B[2m"
+
 #endif // COLORS_H

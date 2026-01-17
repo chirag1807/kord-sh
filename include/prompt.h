@@ -12,6 +12,19 @@ void print_prompt(void);
  */
 char *build_prompt(void);
 
+/**
+ * Read user input (raw mode or cooked mode)
+ */
 int read_user_input(char *command);
+
+/**
+ * Print welcome banner when shell starts
+ */
+void print_welcome(void);
+
+/**
+ * Print goodbye message when shell exits
+ */
+void print_goodbye(void);
 
 #endif // PROMPT_H
