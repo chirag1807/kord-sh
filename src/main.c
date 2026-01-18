@@ -58,23 +58,27 @@ int main()
         char *expanded_command = expand_alias(command);
         const char *cmd_to_parse = (expanded_command != NULL) ? expanded_command : command;
 
-        // Parse command into array of commands (for pipes)
-        char ***commands = parse_command(cmd_to_parse);
+        // Parse command with separator information (handles && and |)
+        int cmd_count = 0;
+        command_t *commands = parse_command_with_separators(cmd_to_parse, &cmd_count);
         
         // Free expanded command if it was allocated
         if (expanded_command != NULL) {
             free(expanded_command);
         }
         
-        if (commands == NULL) {
+        if (commands == NULL || cmd_count == 0) {
+            if (commands != NULL) {
+                free_command_list(commands, cmd_count);
+            }
             continue;
         }
 
         // Execute commands
-        int result = execute_command(commands);
+        int result = execute_command_list(commands, cmd_count);
         
         // Free commands
-        free_commands(commands);
+        free_command_list(commands, cmd_count);
         
         // Check if shell should exit (exit command returns -1)
         if (result == -1) {

@@ -8,6 +8,87 @@
 #include "../include/builtins.h"
 #include "../include/raw_input.h"
 #include "../include/variables.h"
+#include "../include/parser.h"
+
+/**
+ * Execute commands with separator information (handles pipes and &&)
+ */
+int execute_command_list(command_t *commands, int count) {
+    if (commands == NULL || count == 0) {
+        return 0;
+    }
+    
+    int result = 0;
+    int i = 0;
+    
+    while (i < count) {
+        // Find the pipeline segment (all commands connected by pipes until && or end)
+        int pipeline_start = i;
+        int pipeline_count = 1;
+        
+        // Count consecutive pipe-separated commands
+        while (i < count && commands[i].sep == SEP_PIPE) {
+            pipeline_count++;
+            i++;
+        }
+        
+        // Now i points to the last command in this pipeline segment
+        // Execute the pipeline
+        int fd_read = -1;
+        int fd_write;
+        int fd_pipe[2];
+        
+        for (int j = 0; j < pipeline_count; j++) {
+            int cmd_idx = pipeline_start + j;
+            
+            // Create pipe if this is not the last command in pipeline
+            if (j + 1 < pipeline_count) {
+                if (pipe(fd_pipe) == -1) {
+                    perror("pipe");
+                    if (fd_read != -1) {
+                        close(fd_read);
+                    }
+                    return 1;
+                }
+                fd_write = fd_pipe[PIPE_WRITE];
+            } else {
+                fd_write = -1;  // Last command writes to STDOUT
+            }
+            
+            result = execute_single_command(commands[cmd_idx].args, fd_read, fd_write);
+            
+            // If command returns -1, it means exit command
+            if (result == -1) {
+                if (fd_read != -1) close(fd_read);
+                if (fd_write != -1) close(fd_write);
+                return -1;
+            }
+            
+            // Close file descriptors in parent process
+            if (fd_read != -1) close(fd_read);
+            if (fd_write != -1) close(fd_write);
+            
+            // Next command reads from this pipe's read end
+            if (j + 1 < pipeline_count) {
+                fd_read = fd_pipe[PIPE_READ];
+            }
+        }
+        
+        // Check if we should continue (for && operator)
+        if (i < count && commands[i].sep == SEP_AND) {
+            // If the pipeline failed, don't execute the next command
+            if (result != 0) {
+                // Skip remaining commands after failed &&
+                break;
+            }
+        }
+        
+        // Move to next command/pipeline
+        i++;
+    }
+    
+    return result;
+}
 
 int execute_command(char ***commands) {
     if (commands == NULL || commands[0] == NULL) {
@@ -136,6 +217,13 @@ int execute_external(char **command, int fd_read, int fd_write) {
         // Re-enable raw mode after child finishes
         if (was_raw_mode) {
             enable_raw_mode();
+        }
+        
+        // Return the exit status of the child process
+        if (WIFEXITED(status)) {
+            return WEXITSTATUS(status);
+        } else {
+            return 1;  // Command was terminated by signal
         }
     }
     

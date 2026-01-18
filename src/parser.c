@@ -190,6 +190,115 @@ static char **parse_single_command(const char *cmd_str) {
     return args;
 }
 
+/**
+ * Parse command string with separator information
+ * Handles both | (pipes) and && (conditional execution)
+ */
+command_t *parse_command_with_separators(const char *command, int *count) {
+    *count = 0;
+    
+    command_t *commands = malloc(MAX_COMMANDS * sizeof(command_t));
+    if (!commands) {
+        perror("malloc");
+        return NULL;
+    }
+    
+    char *cmd_copy = strdup(command);
+    if (!cmd_copy) {
+        free(commands);
+        perror("strdup");
+        return NULL;
+    }
+    
+    char *ptr = cmd_copy;
+    int cmd_count = 0;
+    
+    while (*ptr && cmd_count < MAX_COMMANDS) {
+        // Skip leading whitespace
+        while (*ptr && isspace((unsigned char)*ptr)) ptr++;
+        if (!*ptr) break;
+        
+        // Find the next separator (| or &&)
+        char *cmd_start = ptr;
+        char *cmd_end = ptr;
+        separator_type_t sep = SEP_NONE;
+        
+        // Scan for separator
+        while (*ptr) {
+            if (*ptr == '|') {
+                cmd_end = ptr;
+                sep = SEP_PIPE;
+                *ptr = '\0';  // Null-terminate command
+                ptr++;
+                break;
+            } else if (*ptr == '&' && *(ptr + 1) == '&') {
+                cmd_end = ptr;
+                sep = SEP_AND;
+                *ptr = '\0';  // Null-terminate command
+                ptr += 2;     // Skip both &
+                break;
+            }
+            ptr++;
+        }
+        
+        // If no separator found, command ends at string end
+        if (sep == SEP_NONE) {
+            cmd_end = ptr;
+        }
+        
+        // Trim whitespace from command segment
+        cmd_start = trim_whitespace(cmd_start);
+        
+        // Skip empty segments
+        if (strlen(cmd_start) == 0) {
+            continue;
+        }
+        
+        // Parse this command segment into arguments
+        char **args = parse_single_command(cmd_start);
+        if (!args) {
+            // Cleanup on error
+            for (int i = 0; i < cmd_count; i++) {
+                for (int j = 0; commands[i].args[j] != NULL; j++) {
+                    free(commands[i].args[j]);
+                }
+                free(commands[i].args);
+            }
+            free(commands);
+            free(cmd_copy);
+            return NULL;
+        }
+        
+        commands[cmd_count].args = args;
+        commands[cmd_count].sep = sep;
+        cmd_count++;
+    }
+    
+    free(cmd_copy);
+    *count = cmd_count;
+    
+    return commands;
+}
+
+/**
+ * Free command list returned by parse_command_with_separators
+ */
+void free_command_list(command_t *commands, int count) {
+    if (commands == NULL) {
+        return;
+    }
+    
+    for (int i = 0; i < count; i++) {
+        if (commands[i].args != NULL) {
+            for (int j = 0; commands[i].args[j] != NULL; j++) {
+                free(commands[i].args[j]);
+            }
+            free(commands[i].args);
+        }
+    }
+    free(commands);
+}
+
 char ***parse_command(const char *command) {
     // Allocate array to hold multiple commands
     char ***commands = malloc(MAX_COMMANDS * sizeof(char **));

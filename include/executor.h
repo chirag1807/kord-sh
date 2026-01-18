@@ -1,6 +1,8 @@
 #ifndef EXECUTOR_H
 #define EXECUTOR_H
 
+#include "parser.h"
+
 #define PIPE_READ 0
 #define PIPE_WRITE 1
 
@@ -10,6 +12,13 @@
  * Returns -1 if shell should exit
  */
 int execute_command(char ***commands);
+
+/**
+ * Execute commands with separator information (handles pipes and &&)
+ * Returns 0 on success, non-zero on failure
+ * Returns -1 if shell should exit
+ */
+int execute_command_list(command_t *commands, int count);
 
 /**
  * Execute a single command (either built-in or external)
