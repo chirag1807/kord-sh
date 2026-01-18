@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -I./include
-SRC = src/main.c src/prompt.c src/parser.c src/executor.c src/builtins.c src/raw_input.c src/variables.c
+SRC = src/main.c src/prompt.c src/parser.c src/executor.c src/builtins.c src/raw_input.c src/variables.c src/aliases.c src/history.c
 OBJ = $(SRC:src/%.c=build/%.o)
 TARGET = bin/main
 

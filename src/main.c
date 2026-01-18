@@ -7,6 +7,8 @@
 #include "../include/executor.h"
 #include "../include/raw_input.h"
 #include "../include/variables.h"
+#include "../include/aliases.h"
+#include "../include/history.h"
 
 int main()
 {
@@ -14,6 +16,12 @@ int main()
     
     // Initialize variable system
     init_variables();
+    
+    // Initialize alias system
+    init_aliases();
+    
+    // Initialize history system
+    init_history();
     
     // Print welcome banner
     print_welcome();
@@ -42,9 +50,22 @@ int main()
         if (len == 0) {
             continue;
         }
+        
+        // Add command to history
+        add_history(command);
+        
+        // Expand aliases if present
+        char *expanded_command = expand_alias(command);
+        const char *cmd_to_parse = (expanded_command != NULL) ? expanded_command : command;
 
         // Parse command into array of commands (for pipes)
-        char ***commands = parse_command(command);
+        char ***commands = parse_command(cmd_to_parse);
+        
+        // Free expanded command if it was allocated
+        if (expanded_command != NULL) {
+            free(expanded_command);
+        }
+        
         if (commands == NULL) {
             continue;
         }
@@ -61,6 +82,12 @@ int main()
             break;
         }
     }
+    
+    // Cleanup history system (saves to file)
+    cleanup_history();
+    
+    // Cleanup alias system
+    cleanup_aliases();
     
     // Cleanup variable system
     cleanup_variables();

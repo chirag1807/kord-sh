@@ -64,4 +64,22 @@ int builtin_unset(char **args);
  */
 int builtin_help(char **args);
 
+/**
+ * Built-in command: alias - define or display aliases
+ * Usage: alias [name[=value]]
+ */
+int builtin_alias(char **args);
+
+/**
+ * Built-in command: unalias - remove alias
+ * Usage: unalias name
+ */
+int builtin_unalias(char **args);
+
+/**
+ * Built-in command: history - display command history
+ * Usage: history
+ */
+int builtin_history(char **args);
+
 #endif // BUILTINS_H

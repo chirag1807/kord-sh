@@ -5,6 +5,8 @@
 #include <limits.h>
 #include "../include/builtins.h"
 #include "../include/variables.h"
+#include "../include/aliases.h"
+#include "../include/history.h"
 
 // Built-in command types
 typedef enum {
@@ -15,6 +17,9 @@ typedef enum {
     BUILTIN_SET,
     BUILTIN_EXPORT,
     BUILTIN_UNSET,
+    BUILTIN_ALIAS,
+    BUILTIN_UNALIAS,
+    BUILTIN_HISTORY,
     BUILTIN_HELP,
     BUILTIN_UNKNOWN
 } BuiltinType;
@@ -35,6 +40,9 @@ static Builtin builtins[] = {
     {"set", BUILTIN_SET, builtin_set, 1},
     {"export", BUILTIN_EXPORT, builtin_export, 1},
     {"unset", BUILTIN_UNSET, builtin_unset, 1},
+    {"alias", BUILTIN_ALIAS, builtin_alias, 1},
+    {"unalias", BUILTIN_UNALIAS, builtin_unalias, 1},
+    {"history", BUILTIN_HISTORY, builtin_history, 1},
     {"help", BUILTIN_HELP, builtin_help, 0},
     {NULL, BUILTIN_UNKNOWN, NULL, 0}  // Sentinel
 };
@@ -207,6 +215,104 @@ int builtin_unset(char **args) {
     return 0;
 }
 
+int builtin_alias(char **args) {
+    // If no arguments, print all aliases
+    if (args[1] == NULL) {
+        print_aliases();
+        return 0;
+    }
+    
+    // Check if format is name=value or name='value'
+    char *equals = strchr(args[1], '=');
+    if (equals != NULL) {
+        // Split into name and value
+        *equals = '\0';
+        const char *name = args[1];
+        
+        // Build full value from remaining arguments
+        // This handles: alias ll='ls -la' which gets split into multiple args
+        char full_value[1024] = {0};
+        const char *value_start = equals + 1;
+        
+        // Copy first part after '='
+        strncpy(full_value, value_start, sizeof(full_value) - 1);
+        
+        // Append remaining arguments with spaces
+        for (int i = 2; args[i] != NULL; i++) {
+            if (strlen(full_value) + strlen(args[i]) + 2 < sizeof(full_value)) {
+                strcat(full_value, " ");
+                strcat(full_value, args[i]);
+            }
+        }
+        
+        // Remove quotes if present
+        char *value = full_value;
+        if ((*value == '\'' || *value == '"') && strlen(value) >= 2) {
+            char quote = *value;
+            value++;
+            char *end = strrchr(value, quote);
+            if (end) {
+                *end = '\0';
+            }
+        }
+        
+        if (set_alias(name, value) != 0) {
+            fprintf(stderr, "alias: failed to set alias '%s'\n\r", name);
+            return 1;
+        }
+    } else {
+        // Format is: alias name (show specific alias)
+        const char *name = args[1];
+        const char *value = get_alias(name);
+        
+        if (value != NULL) {
+            printf("alias %s='%s'\n\r", name, value);
+        } else {
+            fprintf(stderr, "alias: %s: not found\n\r", name);
+            return 1;
+        }
+    }
+    
+    return 0;
+}
+
+int builtin_unalias(char **args) {
+    if (args[1] == NULL) {
+        fprintf(stderr, "unalias: usage: unalias name\n\r");
+        return 1;
+    }
+    
+    const char *name = args[1];
+    
+    if (unset_alias(name) != 0) {
+        fprintf(stderr, "unalias: %s: not found\n\r", name);
+        return 1;
+    }
+    
+    return 0;
+}
+
+int builtin_history(char **args) {
+    (void)args;  // Unused parameter
+    
+    int count = get_history_count();
+    
+    if (count == 0) {
+        printf("No history available\n\r");
+        return 0;
+    }
+    
+    // Print all history entries with line numbers
+    for (int i = 0; i < count; i++) {
+        const char *cmd = get_history(i);
+        if (cmd != NULL) {
+            printf(" %4d  %s\n\r", i + 1, cmd);
+        }
+    }
+    
+    return 0;
+}
+
 int builtin_help(char **args) {
     if (args[1] != NULL) {
         // Help for specific command
@@ -255,7 +361,23 @@ int builtin_help(char **args) {
                 printf("unset: unset VAR\n\r");
                 printf("  Remove a variable from both shell and environment.\n\r");
                 break;
-            case 7: // help
+            case 7: // alias
+                printf("alias: alias [name[=value]]\n\r");
+                printf("  Define or display aliases.\n\r");
+                printf("  - alias: Display all aliases\n\r");
+                printf("  - alias name: Display specific alias\n\r");
+                printf("  - alias name='value': Create or update alias\n\r");
+                break;
+            case 8: // unalias
+                printf("unalias: unalias name\n\r");
+                printf("  Remove an alias.\n\r");
+                break;
+            case 9: // history
+                printf("history: history\n\r");
+                printf("  Display command history.\n\r");
+                printf("  Use UP/DOWN arrow keys to navigate history.\n\r");
+                break;
+            case 10: // help
                 printf("help: help [command]\n\r");
                 printf("  Display help information about builtin commands.\n\r");
                 printf("  Without arguments, lists all available commands.\n\r");
@@ -277,6 +399,9 @@ int builtin_help(char **args) {
         printf("  set [VAR=value]   - Set shell variable or display all\n\r");
         printf("  export VAR[=val]  - Export variable to environment\n\r");
         printf("  unset VAR         - Remove variable\n\r");
+        printf("  alias [name[=val]]- Define or display aliases\n\r");
+        printf("  unalias name      - Remove alias\n\r");
+        printf("  history           - Display command history\n\r");
         printf("  help [command]    - Display this help\n\r");
         printf("\n\r");
         printf("Variable Assignment:\n\r");
@@ -287,6 +412,8 @@ int builtin_help(char **args) {
         printf("  - Pipes: command1 | command2\n\r");
         printf("  - I/O Redirection: < input.txt > output.txt >> append.txt\n\r");
         printf("  - Variable expansion in all commands\n\r");
+        printf("  - Command aliases\n\r");
+        printf("  - Command history (use UP/DOWN arrow keys)\n\r");
         printf("\n\r");
         printf("For more info on a specific command, type: help <command>\n\r");
         printf("\n\r");
