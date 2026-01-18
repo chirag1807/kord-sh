@@ -7,6 +7,7 @@
 #include "../include/variables.h"
 #include "../include/aliases.h"
 #include "../include/history.h"
+#include "../include/jobs.h"
 
 // Built-in command types
 typedef enum {
@@ -20,6 +21,9 @@ typedef enum {
     BUILTIN_ALIAS,
     BUILTIN_UNALIAS,
     BUILTIN_HISTORY,
+    BUILTIN_JOBS,
+    BUILTIN_FG,
+    BUILTIN_BG,
     BUILTIN_HELP,
     BUILTIN_UNKNOWN
 } BuiltinType;
@@ -43,6 +47,9 @@ static Builtin builtins[] = {
     {"alias", BUILTIN_ALIAS, builtin_alias, 1},
     {"unalias", BUILTIN_UNALIAS, builtin_unalias, 1},
     {"history", BUILTIN_HISTORY, builtin_history, 1},
+    {"jobs", BUILTIN_JOBS, builtin_jobs, 1},
+    {"fg", BUILTIN_FG, builtin_fg, 1},
+    {"bg", BUILTIN_BG, builtin_bg, 1},
     {"help", BUILTIN_HELP, builtin_help, 0},
     {NULL, BUILTIN_UNKNOWN, NULL, 0}  // Sentinel
 };
@@ -70,8 +77,6 @@ int execute_builtin(char **args) {
         return 0;  // Empty command
     }
 
-    // Find the builtin type
-    BuiltinType type = BUILTIN_UNKNOWN;
     for (int i = 0; builtins[i].name != NULL; i++) {
         if (strcmp(args[0], builtins[i].name) == 0) {
             return builtins[i].func(args);
@@ -377,7 +382,22 @@ int builtin_help(char **args) {
                 printf("  Display command history.\n\r");
                 printf("  Use UP/DOWN arrow keys to navigate history.\n\r");
                 break;
-            case 10: // help
+            case 10: // jobs
+                printf("jobs: jobs\n\r");
+                printf("  Display all background jobs.\n\r");
+                printf("  Shows job ID, status, and command.\n\r");
+                break;
+            case 11: // fg
+                printf("fg: fg %%job_id\n\r");
+                printf("  Bring a background job to the foreground.\n\r");
+                printf("  Example: fg %%1 (brings job 1 to foreground)\n\r");
+                break;
+            case 12: // bg
+                printf("bg: bg %%job_id\n\r");
+                printf("  Resume a stopped job in the background.\n\r");
+                printf("  Example: bg %%1 (resumes job 1 in background)\n\r");
+                break;
+            case 13: // help
                 printf("help: help [command]\n\r");
                 printf("  Display help information about builtin commands.\n\r");
                 printf("  Without arguments, lists all available commands.\n\r");
@@ -402,6 +422,9 @@ int builtin_help(char **args) {
         printf("  alias [name[=val]]- Define or display aliases\n\r");
         printf("  unalias name      - Remove alias\n\r");
         printf("  history           - Display command history\n\r");
+        printf("  jobs              - Display background jobs\n\r");
+        printf("  fg %%job_id        - Bring job to foreground\n\r");
+        printf("  bg %%job_id        - Resume job in background\n\r");
         printf("  help [command]    - Display this help\n\r");
         printf("\n\r");
         printf("Variable Assignment:\n\r");
@@ -411,6 +434,7 @@ int builtin_help(char **args) {
         printf("Features:\n\r");
         printf("  - Pipes: command1 | command2\n\r");
         printf("  - I/O Redirection: < input.txt > output.txt >> append.txt\n\r");
+        printf("  - Background jobs: command &\n\r");
         printf("  - Variable expansion in all commands\n\r");
         printf("  - Command aliases\n\r");
         printf("  - Command history (use UP/DOWN arrow keys)\n\r");
@@ -420,4 +444,58 @@ int builtin_help(char **args) {
     }
     
     return 0;
+}
+
+int builtin_jobs(char **args) {
+    (void)args;  // Unused parameter
+    // Update job statuses before displaying
+    check_jobs();
+    print_jobs();
+    return 0;
+}
+
+int builtin_fg(char **args) {
+    int job_id;
+    
+    if (args[1] == NULL) {
+        fprintf(stderr, "fg: usage: fg %%job_id\n");
+        return 1;
+    }
+    
+    // Parse job ID (handle both "1" and "%1" formats)
+    const char *id_str = args[1];
+    if (id_str[0] == '%') {
+        id_str++;
+    }
+    
+    job_id = atoi(id_str);
+    if (job_id <= 0) {
+        fprintf(stderr, "fg: invalid job id\n");
+        return 1;
+    }
+    
+    return foreground_job(job_id);
+}
+
+int builtin_bg(char **args) {
+    int job_id;
+    
+    if (args[1] == NULL) {
+        fprintf(stderr, "bg: usage: bg %%job_id\n");
+        return 1;
+    }
+    
+    // Parse job ID (handle both "1" and "%1" formats)
+    const char *id_str = args[1];
+    if (id_str[0] == '%') {
+        id_str++;
+    }
+    
+    job_id = atoi(id_str);
+    if (job_id <= 0) {
+        fprintf(stderr, "bg: invalid job id\n");
+        return 1;
+    }
+    
+    return background_job(job_id);
 }

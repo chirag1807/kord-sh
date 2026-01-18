@@ -82,4 +82,22 @@ int builtin_unalias(char **args);
  */
 int builtin_history(char **args);
 
+/**
+ * Built-in command: jobs - display background jobs
+ * Usage: jobs
+ */
+int builtin_jobs(char **args);
+
+/**
+ * Built-in command: fg - bring background job to foreground
+ * Usage: fg %job_id
+ */
+int builtin_fg(char **args);
+
+/**
+ * Built-in command: bg - resume stopped job in background
+ * Usage: bg %job_id
+ */
+int builtin_bg(char **args);
+
 #endif // BUILTINS_H

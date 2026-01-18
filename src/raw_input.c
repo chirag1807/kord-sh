@@ -422,12 +422,24 @@ static char **find_completions(const char *prefix, int *count) {
  * Handle tab completion
  */
 static void handle_tab_completion(char *buffer, int *cursor, int *length, size_t buffer_size) {
-    // Get word at cursor
-    char word[256];
-    size_t word_len = strlen(word);
+    // Get word at cursor - extract the current word from buffer
+    char word[256] = {0};
+    int word_start = *cursor;
     
-    // tab completions requires at least one character (unless we're after a directory slash)
-    if (word_len == 0 || (word_len == 1 && word[0] == '/')) {
+    // Find start of current word (go back to whitespace or beginning)
+    while (word_start > 0 && !isspace((unsigned char)buffer[word_start - 1])) {
+        word_start--;
+    }
+    
+    // Extract word from word_start to cursor
+    int word_len = *cursor - word_start;
+    if (word_len > 0 && word_len < 256) {
+        strncpy(word, &buffer[word_start], word_len);
+        word[word_len] = '\0';
+    }
+    
+    // tab completions requires at least one character
+    if (word_len == 0) {
         return;
     }
     

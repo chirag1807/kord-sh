@@ -8,6 +8,8 @@
 #include "../include/builtins.h"
 #include "../include/raw_input.h"
 #include "../include/variables.h"
+#include "../include/parser.h"
+#include "../include/jobs.h"
 
 int execute_command(char ***commands) {
     if (commands == NULL || commands[0] == NULL) {
@@ -20,6 +22,12 @@ int execute_command(char ***commands) {
     // Count number of commands
     while (commands[command_count] != NULL) {
         command_count++;
+    }
+    
+    // Check if this is a background command (only applies to single commands, not pipes)
+    int background = 0;
+    if (command_count == 1) {
+        background = is_background_command(commands[0]);
     }
 
     int fd_read = -1;  // -1 means first command reads from STDIN
@@ -41,7 +49,9 @@ int execute_command(char ***commands) {
             fd_write = -1;  // Last command writes to STDOUT
         }
         
-        result = execute_single_command(commands[i], fd_read, fd_write);
+        // Only the last command in a pipeline can be backgrounded
+        int is_background = (background && i == command_count - 1);
+        result = execute_single_command(commands[i], fd_read, fd_write, is_background);
         
         // If command returns -1, it means exit command
         if (result == -1) {
@@ -63,7 +73,7 @@ int execute_command(char ***commands) {
     return result;
 }
 
-int execute_single_command(char **command, int fd_read, int fd_write) {
+int execute_single_command(char **command, int fd_read, int fd_write, int background) {
     // here, command[0] would be the actual command while subsequent array values would be its args.
     if (command == NULL || command[0] == NULL) {
         return 0;  // Empty command
@@ -80,10 +90,10 @@ int execute_single_command(char **command, int fd_read, int fd_write) {
     }
     
     // Otherwise, execute as external command
-    return execute_external(command, fd_read, fd_write);
+    return execute_external(command, fd_read, fd_write, background);
 }
 
-int execute_external(char **command, int fd_read, int fd_write) {
+int execute_external(char **command, int fd_read, int fd_write, int background) {
     // Temporarily disable raw mode so child processes get normal terminal settings (cooked mode)
     int was_raw_mode = is_raw_mode_enabled();
     if (was_raw_mode) {
@@ -128,10 +138,27 @@ int execute_external(char **command, int fd_read, int fd_write) {
     }
     else {
         // Parent process
-        int status;
-        do {
-            waitpid(pid, &status, WUNTRACED);
-        } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+        if (background) {
+            // Build command string for display
+            char cmd_str[1024] = {0};
+            for (int i = 0; command[i] != NULL; i++) {
+                if (i > 0) strncat(cmd_str, " ", sizeof(cmd_str) - strlen(cmd_str) - 1);
+                strncat(cmd_str, command[i], sizeof(cmd_str) - strlen(cmd_str) - 1);
+            }
+            
+            int job_id = add_job(pid, cmd_str);
+            if (job_id != -1) {
+                printf("[%d] %d\n", job_id, pid);
+            }
+            
+            // Don't wait for background job
+        } else {
+            // Foreground job - wait for completion
+            int status;
+            do {
+                waitpid(pid, &status, WUNTRACED);
+            } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+        }
         
         // Re-enable raw mode after child finishes
         if (was_raw_mode) {

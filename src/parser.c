@@ -258,3 +258,25 @@ void free_commands(char ***commands) {
     }
     free(commands);
 }
+
+int is_background_command(char **args) {
+    if (args == NULL || args[0] == NULL) {
+        return 0;
+    }
+    
+    // Find last non-NULL argument
+    int last_idx = 0;
+    while (args[last_idx + 1] != NULL) {
+        last_idx++;
+    }
+    
+    // Check if last argument is "&"
+    if (strcmp(args[last_idx], "&") == 0) {
+        // Remove the "&" from arguments
+        free(args[last_idx]);
+        args[last_idx] = NULL;
+        return 1;
+    }
+    
+    return 0;
+}

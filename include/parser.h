@@ -17,4 +17,11 @@ char ***parse_command(const char *command);
  */
 void free_commands(char ***commands);
 
+/**
+ * Check if command should run in background (ends with &)
+ * Returns 1 if command ends with &, 0 otherwise
+ * Removes the & from the command arguments if found
+ */
+int is_background_command(char **args);
+
 #endif // PARSER_H

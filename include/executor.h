@@ -13,16 +13,18 @@ int execute_command(char ***commands);
 
 /**
  * Execute a single command (either built-in or external)
+ * background: 1 if command should run in background, 0 otherwise
  * Returns 0 on success, non-zero on failure
  * Returns -1 if shell should exit
  */
-int execute_single_command(char **command, int fd_read, int fd_write);
+int execute_single_command(char **command, int fd_read, int fd_write, int background);
 
 /**
  * Execute an external command using fork/exec
+ * background: 1 if command should run in background, 0 otherwise
  * Returns 0 on success, non-zero on failure
  */
-int execute_external(char **command, int fd_read, int fd_write);
+int execute_external(char **command, int fd_read, int fd_write, int background);
 
 /**
  * Apply I/O redirection based on command arguments

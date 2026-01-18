@@ -9,6 +9,7 @@
 #include "../include/variables.h"
 #include "../include/aliases.h"
 #include "../include/history.h"
+#include "../include/jobs.h"
 
 int main()
 {
@@ -23,6 +24,9 @@ int main()
     // Initialize history system
     init_history();
     
+    // Initialize job control system
+    init_jobs();
+    
     // Print welcome banner
     print_welcome();
     
@@ -34,6 +38,9 @@ int main()
 
     while (1)
     {
+        // Check for completed background jobs
+        check_jobs();
+        
         // Print shell prompt
         print_prompt();
 
@@ -82,6 +89,9 @@ int main()
             break;
         }
     }
+    
+    // Cleanup job system
+    cleanup_jobs();
     
     // Cleanup history system (saves to file)
     cleanup_history();
