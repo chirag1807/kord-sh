@@ -459,34 +459,21 @@ static void handle_tab_completion(char *buffer, int *cursor, int *length, size_t
         // Extract just the filename part from word for comparison
         const char *word_filename = word;
         char *last_slash_in_word = strrchr(word, '/');
+        size_t dir_prefix_len = 0;
         if (last_slash_in_word != NULL) {
             word_filename = last_slash_in_word + 1;
-        }
-        
-        // Calculate how much to add - we need to replace the typed prefix with the exact case
-        // First, find the length of the matched filename (without trailing /)
-        size_t completion_len = strlen(completion);
-        int has_trailing_slash = 0;
-        if (completion_len > 0 && completion[completion_len - 1] == '/') {
-            has_trailing_slash = 1;
-            completion_len--;  // Don't count the trailing slash for now
+            dir_prefix_len = (last_slash_in_word - word) + 1;  // Include the slash
         }
         
         size_t word_filename_len = strlen(word_filename);
+        size_t completion_len = strlen(completion);
         
         // Calculate what to add: the part of completion that wasn't typed
-        // But we need to replace the incorrectly cased prefix first
         const char *to_add = completion + word_filename_len;
         size_t add_len = strlen(to_add);
         
-        // Calculate replacement: we'll delete the old prefix and add the correctly cased one
-        size_t replace_len = completion_len;
-        if (has_trailing_slash) {
-            replace_len++;  // Include trailing slash
-        }
-        
         // Check if we have space
-        if (*length - word_filename_len + replace_len >= buffer_size - 1) {
+        if (*length + add_len >= buffer_size - 1) {
             free(matches[0]);
             free(matches);
             return;
@@ -509,16 +496,22 @@ static void handle_tab_completion(char *buffer, int *cursor, int *length, size_t
             move_cursor_left(*length - *cursor);
         }
         
-        // Move cursor back to the start of the word to replace entire filename with correct case
-        int chars_to_remove = *cursor - word_start;
-        if (chars_to_remove > 0) {
-            // Move visually and in buffer
-            *cursor = word_start;
-            move_cursor_left(chars_to_remove);
-            
-            // Remove the old characters
-            memmove(&buffer[word_start], &buffer[word_start + chars_to_remove], *length - word_start - chars_to_remove);
-            *length -= chars_to_remove;
+        // We need to replace only the filename part (after the last slash), keeping directory prefix
+        // Calculate position where filename starts in the buffer
+        int filename_start = word_start + dir_prefix_len;
+        
+        // Move cursor to the start of the filename (not the whole word)
+        if (*cursor > filename_start) {
+            int chars_back = *cursor - filename_start;
+            move_cursor_left(chars_back);
+            *cursor = filename_start;
+        }
+        
+        // Remove the typed filename part
+        int filename_chars = word_filename_len;
+        if (filename_chars > 0) {
+            memmove(&buffer[*cursor], &buffer[*cursor + filename_chars], *length - *cursor - filename_chars);
+            *length -= filename_chars;
             buffer[*length] = '\0';
             
             // Redraw from cursor position
@@ -528,7 +521,7 @@ static void handle_tab_completion(char *buffer, int *cursor, int *length, size_t
         }
         
         // Insert the complete filename with correct case
-        for (size_t i = 0; i < replace_len && *length < (int)buffer_size - 1; i++) {
+        for (size_t i = 0; i < completion_len && *length < (int)buffer_size - 1; i++) {
             insert_char(buffer, cursor, length, completion[i], buffer_size);
         }
         

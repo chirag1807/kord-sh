@@ -206,37 +206,74 @@ char ***parse_command(const char *command) {
     }
     
     int cmd_count = 0;
-    char *saveptr;
-    char *pipe_token = strtok_r(cmd_copy, "|", &saveptr);
+    char *ptr = cmd_copy;
+    char *segment_start = ptr;
+    int in_quotes = 0;
+    char quote_char = 0;
     
-    while (pipe_token != NULL && cmd_count < MAX_COMMANDS - 1) {
-        // Trim whitespace from the command segment
-        pipe_token = trim_whitespace(pipe_token);
+    // Manually split by pipe while respecting quotes
+    while (cmd_count < MAX_COMMANDS - 1) {
+        if (*ptr == '\0') {
+            // End of string - process final segment
+            char *segment = trim_whitespace(segment_start);
+            if (strlen(segment) > 0) {
+                char **args = parse_single_command(segment);
+                if (!args) {
+                    // Cleanup on error
+                    for (int i = 0; i < cmd_count; i++) {
+                        for (int j = 0; commands[i][j] != NULL; j++) {
+                            free(commands[i][j]);
+                        }
+                        free(commands[i]);
+                    }
+                    free(commands);
+                    free(cmd_copy);
+                    return NULL;
+                }
+                commands[cmd_count] = args;
+                cmd_count++;
+            }
+            break;
+        }
         
-        // Skip empty segments
-        if (strlen(pipe_token) == 0) {
-            pipe_token = strtok_r(NULL, "|", &saveptr);
+        // Track quote state
+        if ((*ptr == '"' || *ptr == '\'') && !in_quotes) {
+            in_quotes = 1;
+            quote_char = *ptr;
+        } else if (*ptr == quote_char && in_quotes) {
+            in_quotes = 0;
+            quote_char = 0;
+        }
+        
+        // Split on pipe only if not inside quotes
+        if (*ptr == '|' && !in_quotes) {
+            *ptr = '\0';  // Terminate current segment
+            
+            char *segment = trim_whitespace(segment_start);
+            if (strlen(segment) > 0) {
+                char **args = parse_single_command(segment);
+                if (!args) {
+                    // Cleanup on error
+                    for (int i = 0; i < cmd_count; i++) {
+                        for (int j = 0; commands[i][j] != NULL; j++) {
+                            free(commands[i][j]);
+                        }
+                        free(commands[i]);
+                    }
+                    free(commands);
+                    free(cmd_copy);
+                    return NULL;
+                }
+                commands[cmd_count] = args;
+                cmd_count++;
+            }
+            
+            ptr++;
+            segment_start = ptr;
             continue;
         }
         
-        // Parse this command segment into arguments
-        char **args = parse_single_command(pipe_token);
-        if (!args) {
-            // Cleanup on error
-            for (int i = 0; i < cmd_count; i++) {
-                for (int j = 0; commands[i][j] != NULL; j++) {
-                    free(commands[i][j]);
-                }
-                free(commands[i]);
-            }
-            free(commands);
-            free(cmd_copy);
-            return NULL;
-        }
-        
-        commands[cmd_count] = args;
-        cmd_count++;
-        pipe_token = strtok_r(NULL, "|", &saveptr);
+        ptr++;
     }
     
     commands[cmd_count] = NULL;  // NULL terminate the array
