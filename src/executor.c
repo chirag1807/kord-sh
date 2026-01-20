@@ -4,6 +4,7 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <string.h>
+#include <signal.h>
 #include "../include/executor.h"
 #include "../include/builtins.h"
 #include "../include/raw_input.h"
@@ -90,10 +91,19 @@ int execute_external(char **command, int fd_read, int fd_write) {
         disable_raw_mode();
     }
     
+    // Save the current SIGINT handler and set to ignore for parent shell
+    struct sigaction sa_ignore, sa_old;
+    sa_ignore.sa_handler = SIG_IGN;
+    sigemptyset(&sa_ignore.sa_mask);
+    sa_ignore.sa_flags = 0;
+    sigaction(SIGINT, &sa_ignore, &sa_old);
+    
     pid_t pid = fork();
     
     if (pid == -1) {
         perror("fork");
+        // Restore original signal handler
+        sigaction(SIGINT, &sa_old, NULL);
         // Re-enable raw mode if it was enabled before
         if (was_raw_mode) {
             enable_raw_mode();
@@ -101,6 +111,9 @@ int execute_external(char **command, int fd_read, int fd_write) {
         return 1;
     }
     else if (pid == 0) {
+        // Child process: restore default SIGINT handler
+        signal(SIGINT, SIG_DFL);
+        
         if (fd_read != -1 && fd_read != STDIN_FILENO) {
             dup2(fd_read, STDIN_FILENO);
             close(fd_read);
@@ -112,7 +125,6 @@ int execute_external(char **command, int fd_read, int fd_write) {
 
         apply_io_redirection(command);
 
-        // Child process
         // Check if it's a builtin that can run in child (like pwd, echo in pipes)
         if (is_builtin(command[0]) && !must_run_in_parent(command[0])) {
             int result = execute_builtin(command);
@@ -132,6 +144,15 @@ int execute_external(char **command, int fd_read, int fd_write) {
         do {
             waitpid(pid, &status, WUNTRACED);
         } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+        
+        // Restore original SIGINT handler
+        sigaction(SIGINT, &sa_old, NULL);
+        
+        // If child was terminated by a signal (like Ctrl+C), print newline
+        // because terminal echoes "^C" but doesn't add newline
+        if (WIFSIGNALED(status)) {
+            write(STDOUT_FILENO, "\n", 1);
+        }
         
         // Re-enable raw mode after child finishes
         if (was_raw_mode) {
