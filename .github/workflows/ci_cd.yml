@@ -1,0 +1,42 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential gcc
+      
+      - name: Create directories
+        run: |
+          mkdir -p bin build
+      
+      - name: Build kord-sh
+        run: make all
+      
+      - name: Prepare release binary
+        run: |
+          cp bin/main kord-sh
+          chmod +x kord-sh
+          
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: kord-sh
+          generate_release_notes: true
+          draft: false
+          prerelease: false
