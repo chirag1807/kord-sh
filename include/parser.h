@@ -1,8 +1,7 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-#define MAX_COMMANDS 64
-#define MAX_ARGS 64
+#include "config.h"
 
 /**
  * Parse command string into array of commands (for pipes)

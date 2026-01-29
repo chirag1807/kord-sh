@@ -1,8 +1,7 @@
 #ifndef EXECUTOR_H
 #define EXECUTOR_H
 
-#define PIPE_READ 0
-#define PIPE_WRITE 1
+#include "config.h"
 
 /**
  * Execute commands (handles multiple commands for pipes)

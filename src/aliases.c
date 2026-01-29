@@ -1,12 +1,5 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
+#include "../include/common.h"
 #include "../include/aliases.h"
-
-#define MAX_ALIASES 100
-#define MAX_ALIAS_NAME 64
-#define MAX_ALIAS_VALUE 1024
 
 typedef struct {
     char name[MAX_ALIAS_NAME];

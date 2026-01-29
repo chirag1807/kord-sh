@@ -1,10 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <fcntl.h>
-#include <string.h>
-#include <signal.h>
+#include "../include/common.h"
 #include "../include/executor.h"
 #include "../include/builtins.h"
 #include "../include/raw_input.h"

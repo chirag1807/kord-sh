@@ -1,7 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include "../include/colors.h"
+#include "../include/common.h"
 #include "../include/prompt.h"
 #include "../include/parser.h"
 #include "../include/executor.h"

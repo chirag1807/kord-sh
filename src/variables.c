@@ -1,12 +1,5 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
+#include "../include/common.h"
 #include "../include/variables.h"
-
-#define MAX_VARIABLES 256
-#define MAX_VAR_NAME 128
-#define MAX_VAR_VALUE 1024
 
 typedef struct {
     char name[MAX_VAR_NAME];

@@ -1,7 +1,7 @@
 #ifndef HISTORY_H
 #define HISTORY_H
 
-#define MAX_HISTORY 50
+#include "config.h"
 
 /**
  * Initialize history system

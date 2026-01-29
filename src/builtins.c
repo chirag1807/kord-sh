@@ -1,8 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <limits.h>
+#include "../include/common.h"
 #include "../include/builtins.h"
 #include "../include/variables.h"
 #include "../include/aliases.h"

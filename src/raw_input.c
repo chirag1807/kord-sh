@@ -1,11 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <termios.h>
-#include <unistd.h>
-#include <ctype.h>
-#include <dirent.h>
-#include <sys/stat.h>
+#include "../include/common.h"
 #include "../include/raw_input.h"
 #include "../include/history.h"
 #include "../include/prompt.h"

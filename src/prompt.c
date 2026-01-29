@@ -1,16 +1,6 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <limits.h>
-#include <pwd.h>
-#include <string.h>
-#include <time.h>
-#include <sys/utsname.h>
-#include "../include/colors.h"
+#include "../include/common.h"
 #include "../include/prompt.h"
 #include "../include/raw_input.h"
-
-#define SHELL_VERSION "1.0.0"
 
 void print_prompt(void)
 {
